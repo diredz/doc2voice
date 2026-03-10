@@ -108,9 +108,20 @@ class Doc2VoiceGUI(ctk.CTk):
         self.log_area.pack(pady=10)
 
     def log(self, message):
-        self.log_area.insert("end", f"{message}\n")
-        self.log_area.see("end")
-        self.progress_label.configure(text=f"Status: {message}")
+        def _log():
+            self.log_area.insert("end", f"{message}\n")
+            self.log_area.see("end")
+            self.progress_label.configure(text=f"Status: {message}")
+        self.after(0, _log)
+
+    def set_progress(self, value):
+        self.after(0, lambda: self.progress_bar.set(value))
+
+    def show_message(self, title, message, type="info"):
+        if type == "error":
+            self.after(0, lambda: messagebox.showerror(title, message))
+        else:
+            self.after(0, lambda: messagebox.showinfo(title, message))
 
     def browse_input(self):
         f = filedialog.askopenfilename(filetypes=[("Documents", "*.pdf *.docx *.txt")])
@@ -156,15 +167,20 @@ class Doc2VoiceGUI(ctk.CTk):
         if self.is_processing:
             return
 
+        fmt = self.output_format.get()
+        out_path = filedialog.asksaveasfilename(defaultextension=f".{fmt}", filetypes=[("Audio", f"*.{fmt}")])
+        if not out_path:
+            return
+
         self.is_processing = True
         self.convert_btn.configure(state="disabled")
         self.progress_bar.set(0)
         self.log_area.delete("1.0", "end")
         
         # Run in thread
-        threading.Thread(target=self.process_logic, daemon=True).start()
+        threading.Thread(target=self.process_logic, args=(out_path,), daemon=True).start()
 
-    def process_logic(self):
+    def process_logic(self, out_path):
         try:
             input_path = self.input_file.get()
             voice_path = self.voice_file.get()
@@ -172,12 +188,7 @@ class Doc2VoiceGUI(ctk.CTk):
             fmt = self.output_format.get()
             temp = self.temperature.get()
             top_p = self.top_p.get()
-            out_path = filedialog.asksaveasfilename(defaultextension=f".{fmt}", filetypes=[("Audio", f"*.{fmt}")])
             
-            if not out_path:
-                self.reset_ui("Cancelled")
-                return
-
             self.log(f"Extracting text (Temp: {temp:.2f}, Top P: {top_p:.2f})...")
             raw_text = extract_text(input_path)
             
@@ -199,7 +210,7 @@ class Doc2VoiceGUI(ctk.CTk):
                 chunk_type = chunk_data["type"]
                 
                 self.log(f"Processing Chunk {i+1}/{num_chunks}...")
-                self.progress_bar.set((i + 1) / num_chunks)
+                self.set_progress((i + 1) / num_chunks)
                 
                 # Support multiple voices (comma separated in the UI)
                 voice_paths = [v.strip() for v in voice_path.split(",")] if "," in voice_path else voice_path
@@ -228,17 +239,19 @@ class Doc2VoiceGUI(ctk.CTk):
                 cleanup_files([f["path"] for f in tmp_files])
                 
             self.reset_ui("Conversion Successful!")
-            messagebox.showinfo("Success", f"Audio saved to:\n{out_path}")
+            self.show_message("Success", f"Audio saved to:\n{out_path}")
 
         except Exception as e:
             self.log(f"Error: {str(e)}")
             self.reset_ui("Failed")
-            messagebox.showerror("Error", str(e))
+            self.show_message("Error", str(e), type="error")
 
     def reset_ui(self, status):
-        self.is_processing = False
-        self.convert_btn.configure(state="normal")
-        self.progress_label.configure(text=f"Status: {status}")
+        def _reset():
+            self.is_processing = False
+            self.convert_btn.configure(state="normal")
+            self.progress_label.configure(text=f"Status: {status}")
+        self.after(0, _reset)
 
 if __name__ == "__main__":
     app = Doc2VoiceGUI()
