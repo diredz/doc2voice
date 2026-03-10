@@ -117,9 +117,9 @@ class Doc2VoiceGUI(ctk.CTk):
         if f: self.input_file.set(f)
 
     def browse_voice(self):
-        f = filedialog.askopenfilename(filetypes=[("Audio", "*.wav")])
+        f = filedialog.askopenfilenames(filetypes=[("Audio", "*.wav")])
         if f: 
-            self.voice_file.set(f)
+            self.voice_file.set(", ".join(f))
             self.lib_option.set("Custom...")
 
     def update_voice_library(self):
@@ -202,7 +202,10 @@ class Doc2VoiceGUI(ctk.CTk):
                 with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                     tmp_path = tmp.name
                 
-                engine.generate_speech(text, voice_path, lang, tmp_path, temperature=temp, top_p=top_p)
+                # Support multiple voices (comma separated in the UI)
+                voice_paths = [v.strip() for v in voice_path.split(",")] if "," in voice_path else voice_path
+                
+                engine.generate_speech(text, voice_paths, lang, tmp_path, temperature=temp, top_p=top_p)
                 tmp_files.append(tmp_path)
 
             if tmp_files:

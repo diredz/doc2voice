@@ -68,10 +68,13 @@ def main():
             tmp_path = tmp.name
         
         print(f"    [Chunk {i+1}/{num_chunks}] Generating speech...")
+        # Support multiple voices (comma separated in CLI)
+        voice_paths = [v.strip() for v in args.voice.split(",")] if "," in args.voice else args.voice
+        
         try:
             engine.generate_speech(
                 text=text, 
-                speaker_wav=args.voice, 
+                speaker_wav=voice_paths, 
                 language=args.lang, 
                 output_path=tmp_path,
                 temperature=args.temperature,

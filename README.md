@@ -57,7 +57,7 @@ python main.py --input path/to/doc.pdf --voice path/to/voice.wav --lang en --out
 ```
 **Arguments:**
 - `--input`: Path to PDF, TXT, or DOCX.
-- `--voice`: Path to a 6-10s WAV voice sample.
+- `--voice`: Path to a 6-10s WAV voice sample (or multiple samples separated by commas for voice blending).
 - `--lang`: Language code (e.g., `en`, `de`, `fr`, `es`).
 - `--temperature`: 0.1 - 1.0 (default 0.75).
 - `--top-p`: 0.1 - 1.0 (default 0.85).
