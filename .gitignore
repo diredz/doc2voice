@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Audio Output
+*.wav
+*.mp3
+!voices/*.wav
+
+# Model Files (if any)
+*.pth
+*.json
+!README.md
+!requirements.txt
+!gui.py
+!main.py
+!text_extraction.py
+!chunking.py
+!tts_engine.py
+!audio_utils.py
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

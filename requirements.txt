@@ -1,0 +1,12 @@
+tts
+transformers==4.33.0
+pypdf
+python-docx
+pydub
+torch
+torchaudio
+torchvision
+torchcodec
+numpy<2.0.0
+customtkinter
+packaging
