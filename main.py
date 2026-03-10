@@ -5,7 +5,7 @@ import time
 from text_extraction import extract_text
 from chunking import chunk_text
 from tts_engine import TTSEngine
-from audio_utils import concatenate_wavs, cleanup_files
+from audio_utils import concatenate_wavs, cleanup_files, get_chunk_cache_path
 
 """
 doc2voice - Convert documents to personalized speech using Coqui XTTS-v2.
@@ -40,8 +40,8 @@ def main():
     print(f"[*] Extracted {len(raw_text)} characters.")
 
     # 2. Chunking
-    print(f"[*] Splitting text into chunks (max_len={args.chunk_max_len})...")
-    chunks = chunk_text(raw_text, max_len=args.chunk_max_len)
+    print(f"[*] Splitting text into chunks (max_chars={args.chunk_max_len})...")
+    chunks = chunk_text(raw_text, max_chars=args.chunk_max_len)
     num_chunks = len(chunks)
     print(f"[*] Created {num_chunks} chunks.")
 
@@ -57,33 +57,44 @@ def main():
         print(f"Error initializing TTS engine: {e}")
         return
 
-    tmp_files = []
+    tmp_files = [] # Will store list of {"path": ..., "type": ...}
     print("[*] Starting TTS generation...")
     
     start_time = time.time()
-    for i, text in enumerate(chunks):
-        suffix = f".chunk_{i}.wav"
-        # We use a temporary file for each chunk
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp_path = tmp.name
+    for i, chunk_data in enumerate(chunks):
+        text = chunk_data["text"]
+        chunk_type = chunk_data["type"]
         
-        print(f"    [Chunk {i+1}/{num_chunks}] Generating speech...")
         # Support multiple voices (comma separated in CLI)
         voice_paths = [v.strip() for v in args.voice.split(",")] if "," in args.voice else args.voice
         
+        # Caching logic
+        cache_path = get_chunk_cache_path(
+            text=text,
+            voice_path=str(voice_paths),
+            language=args.lang,
+            temperature=args.temperature,
+            top_p=args.top_p
+        )
+        
+        if os.path.exists(cache_path):
+            print(f"    [Chunk {i+1}/{num_chunks}] Using cached audio...")
+            tmp_files.append({"path": cache_path, "type": chunk_type})
+            continue
+
+        print(f"    [Chunk {i+1}/{num_chunks}] Generating speech...")
         try:
             engine.generate_speech(
                 text=text, 
                 speaker_wav=voice_paths, 
                 language=args.lang, 
-                output_path=tmp_path,
+                output_path=cache_path,
                 temperature=args.temperature,
                 top_p=args.top_p
             )
-            tmp_files.append(tmp_path)
+            tmp_files.append({"path": cache_path, "type": chunk_type})
         except Exception as e:
             print(f"    Error generating chunk {i+1}: {e}")
-            # Continue with others if possible or fail?
     
     # 4. Audio Merging
     if tmp_files:
@@ -94,7 +105,7 @@ def main():
             print(f"Error merging audio: {e}")
         finally:
             print("[*] Cleaning up temporary files...")
-            cleanup_files(tmp_files)
+            cleanup_files([f["path"] for f in tmp_files])
     
     end_time = time.time()
     elapsed = end_time - start_time

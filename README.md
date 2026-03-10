@@ -11,6 +11,8 @@ A fully local macOS project to convert documents (PDF, DOCX, TXT) into natural, 
 - **Expressiveness Controls**: Fine-tune `temperature` and `top_p` for animated or stable speech.
 - **Voice Library**: Managed folder for standard/default voices.
 - **Seamless Audio**: Automatic silence trimming and 50ms crossfading between chunks.
+- **Smart Pacing**: Intelligent paragraph detection with longer pauses (600ms) compared to sentences (300ms).
+- **Resume Support (Caching)**: Automatic MD5 hashing of chunks—if a job is interrupted, it resumes from where it left off.
 - **Apple Silicon Optimized**: Uses MPS (Metal Performance Shaders) for GPU acceleration.
 
 ## 🚀 Setup Instructions

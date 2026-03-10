@@ -7,7 +7,7 @@ from tkinter import filedialog, messagebox
 from text_extraction import extract_text
 from chunking import chunk_text
 from tts_engine import TTSEngine
-from audio_utils import concatenate_wavs, cleanup_files
+from audio_utils import concatenate_wavs, cleanup_files, get_chunk_cache_path
 
 # Set theme and color
 ctk.set_appearance_mode("Dark")
@@ -193,25 +193,39 @@ class Doc2VoiceGUI(ctk.CTk):
             self.log("Initializing TTS Engine...")
             engine = TTSEngine()
 
-            tmp_files = []
-            for i, text in enumerate(chunks):
-                self.log(f"Generating Chunk {i+1}/{num_chunks}...")
-                self.progress_bar.set((i + 1) / num_chunks)
+            tmp_files = [] # Will store list of {"path": ..., "type": ...}
+            for i, chunk_data in enumerate(chunks):
+                text = chunk_data["text"]
+                chunk_type = chunk_data["type"]
                 
-                suffix = f".chunk_{i}.wav"
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                    tmp_path = tmp.name
+                self.log(f"Processing Chunk {i+1}/{num_chunks}...")
+                self.progress_bar.set((i + 1) / num_chunks)
                 
                 # Support multiple voices (comma separated in the UI)
                 voice_paths = [v.strip() for v in voice_path.split(",")] if "," in voice_path else voice_path
                 
-                engine.generate_speech(text, voice_paths, lang, tmp_path, temperature=temp, top_p=top_p)
-                tmp_files.append(tmp_path)
+                # Caching logic
+                cache_path = get_chunk_cache_path(
+                    text=text,
+                    voice_path=str(voice_paths),
+                    language=lang,
+                    temperature=temp,
+                    top_p=top_p
+                )
+                
+                if os.path.exists(cache_path):
+                    self.log(f"   [Chunk {i+1}] Using cached audio...")
+                    tmp_files.append({"path": cache_path, "type": chunk_type})
+                    continue
+
+                self.log(f"   [Chunk {i+1}] Generating speech...")
+                engine.generate_speech(text, voice_paths, lang, cache_path, temperature=temp, top_p=top_p)
+                tmp_files.append({"path": cache_path, "type": chunk_type})
 
             if tmp_files:
                 self.log(f"Merging audio chunks into {os.path.basename(out_path)}...")
                 concatenate_wavs(tmp_files, out_path, format=fmt)
-                cleanup_files(tmp_files)
+                cleanup_files([f["path"] for f in tmp_files])
                 
             self.reset_ui("Conversion Successful!")
             messagebox.showinfo("Success", f"Audio saved to:\n{out_path}")
